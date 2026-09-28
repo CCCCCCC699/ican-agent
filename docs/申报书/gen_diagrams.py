@@ -45,19 +45,23 @@ for i, a in enumerate(agents):
 # 层间箭头
 arrow(ax, 6, 5.9, 6, 5.6)
 arrow(ax, 6, 3.5, 6, 3.2)
-# 数据底座层
-box(ax, 0.2, 1.0, 5.4, 1.6, "Neo4j 知识图谱\nLine / LineStation / Transfer\n(线路·站点·换乘关系)", "#8e44ad", fs=11)
-box(ax, 6.4, 1.0, 5.4, 1.6, "大模型（双模式）\n云API: DeepSeek/智谱/硅基流动\n本地: Ollama + Qwen", "#c0392b", fs=11)
+# 数据底座层（三引擎）
+box(ax, 0.2, 1.0, 3.9, 1.6, "Neo4j 知识图谱\nLine / LineStation / Transfer\n(线路·站点·换乘关系)", "#8e44ad", fs=10.5)
+box(ax, 4.3, 1.0, 3.9, 1.6, "拥挤度模型\n22线×5时段查表\n(读当前时间·工作日/周末)", "#e11d48", fs=10.5)
+box(ax, 8.4, 1.0, 3.4, 1.6, "大模型（双模式）\n云API / 本地Ollama", "#c0392b", fs=10.5)
 # 图算法模块 → Neo4j
-arrow(ax, 2.6, 3.7, 2.9, 2.7)
+arrow(ax, 2.6, 3.7, 2.1, 2.7)
 # Text2Cypher → Neo4j
-arrow(ax, 3.6, 3.7, 3.3, 2.7)
+arrow(ax, 3.6, 3.7, 3.0, 2.7)
+# 拥挤查询/路线规划 → 拥挤度模型
+arrow(ax, 5.6, 3.7, 6.2, 2.7)
 # LLM与后端双向
-arrow(ax, 9.0, 3.7, 9.1, 2.7); arrow(ax, 9.6, 2.6, 9.5, 3.7)
+arrow(ax, 10.1, 3.7, 10.1, 2.7); arrow(ax, 10.7, 2.6, 10.7, 3.7)
 # 标签
-ax.text(1.2, 3.3, "查询/执行", fontsize=9, color="#5a6c7d")
-ax.text(8.6, 3.3, "推理调用", fontsize=9, color="#5a6c7d")
-ax.text(6.05, 1.2, "确定性计算 + 语义理解 双引擎", fontsize=10, ha="center", color="#5a6c7d", style="italic")
+ax.text(1.1, 3.3, "查询/执行", fontsize=9, color="#5a6c7d")
+ax.text(5.7, 3.3, "时段匹配", fontsize=9, color="#5a6c7d")
+ax.text(9.7, 3.3, "推理调用", fontsize=9, color="#5a6c7d")
+ax.text(6.05, 0.55, "确定性计算 + 语义理解 + 时间感知 三引擎", fontsize=10, ha="center", color="#5a6c7d", style="italic")
 fig.savefig(OUT / "图-架构图.png", bbox_inches="tight", facecolor=BG)
 plt.close(fig)
 
