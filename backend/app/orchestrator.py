@@ -145,8 +145,15 @@ class Orchestrator:
                     trace["cypher"] = ROUTE_CYPHER_HINT
                     trace["evidence"] = _route_evidence(plan)
                     trace["graph"] = _route_graph(plan)
-                    trace["answer"] = compose_answer(self.llm, message,
-                                                     [{"plan": format_plan_for_llm(plan)}])
+                    evidence_text = format_plan_for_llm(plan)
+                    constraints = []
+                    if args.get("via"):
+                        constraints.append(f"途经{'、'.join(args['via'])}")
+                    if args.get("avoid"):
+                        constraints.append(f"避开{'、'.join(args['avoid'])}")
+                    if constraints:
+                        evidence_text += "\n已满足约束：" + "；".join(constraints)
+                    trace["answer"] = compose_answer(self.llm, message, [{"plan": evidence_text}])
         elif intent_key == "info_query":
             result = text_to_cypher(self.llm, args["question"], self.store.run_read_query)
             trace["cypher"] = result["cypher"]
