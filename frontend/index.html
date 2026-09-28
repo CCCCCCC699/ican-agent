@@ -510,7 +510,11 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   });
   const ok = await detectApi();
   setStatus(ok ? 'online' : 'demo');
-  setTimeout(()=>send(DEMO_QS[0]), 800);
+  // 仅首次访问自动演示一次（评委首开即见效果），刷新页面不再自动发问
+  if (!sessionStorage.getItem('autoDemoDone')) {
+    sessionStorage.setItem('autoDemoDone', '1');
+    setTimeout(()=>send(DEMO_QS[0]), 800);
+  }
 });
 </script>
 </body>
