@@ -9,7 +9,7 @@ ROUTER_SYSTEM = """你是轨道交通出行助手的意图路由模块。将用�
 
 SCHEMA_DESC = """知识图谱Schema（Neo4j）：
 (:Line {name, color})  线路节点
-(:LineStation {station, line, order})  线路上站点节点
+(:LineStation {station, line, order, is_transfer})  线路上站点节点（is_transfer为布尔值）
 (:LineStation)-[:ON_LINE]->(:Line)
 (:LineStation)-[:NEXT_STATION]->(:LineStation)  同线相邻
 (:LineStation)-[:TRANSFER_TO {transfer_type, transfer_time}]->(:LineStation)  换乘
@@ -19,7 +19,7 @@ TEXT2CYPHER_SYSTEM = SCHEMA_DESC + """
 
 示例：
 问：2号线经过哪些换乘站？
-{"cypher": "MATCH (ls:LineStation {line:'2号线', is_transfer:'true'}) RETURN ls.station AS station"}
+{"cypher": "MATCH (ls:LineStation {line:'2号线', is_transfer:true}) RETURN ls.station AS station"}
 
 问：人民广场可以换乘哪几条线？
 {"cypher": "MATCH (ls:LineStation {station:'人民广场'}) RETURN DISTINCT ls.line AS line"}
