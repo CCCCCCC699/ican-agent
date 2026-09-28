@@ -1,7 +1,7 @@
 from app.agents.router import route_intent
 from app.llm.client import LLMClient
 
-NAMES = ["莘庄", "人民广场", "徐家汇", "陆家嘴", "五角场"]
+NAMES = ["莘庄", "人民广场", "徐家汇", "陆家嘴", "五角场", "虹桥火车站"]
 
 def fake_llm(reply):
     class Fake:
