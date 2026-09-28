@@ -59,7 +59,7 @@ def _plan_pair(G, start_name: str, end_name: str, banned_names: set[str]):
     return {"node_path": path, "stations": stations, "total": total}
 
 def plan_route(G, start: str, end: str, via: list[str] = [], avoid: list[str] = []) -> dict:
-    banned = set(avoid)  # 仅禁避让站；起终点必须保留
+    banned = set(avoid) - {start, end}  # 避让站与起终点冲突时自动忽略
     stops = [start] + list(via) + [end]
     segments = []
     for a, b in zip(stops, stops[1:]):
@@ -72,5 +72,10 @@ def plan_route(G, start: str, end: str, via: list[str] = [], avoid: list[str] = 
     path = segments[0]["stations"]
     for seg in segments[1:]:
         path += seg["stations"][1:]
+    # 压缩连续重复站名（换乘站跨线同名）
+    compressed = [path[0]]
+    for s in path[1:]:
+        if s != compressed[-1]:
+            compressed.append(s)
     total_time = sum(s["total"] for s in segments)
-    return {"ok": True, "path": path, "total_time": total_time, "segments": segments}
+    return {"ok": True, "path": compressed, "total_time": total_time, "segments": segments}
