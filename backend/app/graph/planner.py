@@ -41,6 +41,18 @@ def _shortest(G, start_node: str, end_node: str) -> tuple[Optional[list], Option
     except (nx.NetworkXNoPath, nx.NodeNotFound):
         return None, None
 
+def _line_summary(G, node_path):
+    """把节点路径按线路切段：[(线路名, [站名...]), ...]。"""
+    parts = []
+    for n in node_path:
+        line = G.nodes[n]["line"]
+        station = G.nodes[n]["station"]
+        if parts and parts[-1][0] == line:
+            parts[-1][1].append(station)
+        else:
+            parts.append([line, [station]])
+    return [{"line": line, "stations": stations} for line, stations in parts]
+
 def _plan_pair(G, start_name: str, end_name: str, banned_names: set[str]):
     H = G.copy()
     for node, d in G.nodes(data=True):
@@ -56,7 +68,8 @@ def _plan_pair(G, start_name: str, end_name: str, banned_names: set[str]):
         return None
     path, total, sn, en = best
     stations = [G.nodes[n]["station"] for n in path]
-    return {"node_path": path, "stations": stations, "total": total}
+    return {"node_path": path, "stations": stations, "total": total,
+            "line_parts": _line_summary(G, path)}
 
 def plan_route(G, start: str, end: str, via: list[str] = [], avoid: list[str] = []) -> dict:
     banned = set(avoid) - {start, end}  # 避让站与起终点冲突时自动忽略

@@ -34,3 +34,11 @@ def test_no_duplicate_consecutive_stations():
     r = plan_route(G, "莘庄", "五角场", via=["徐家汇"])
     assert r["ok"], r.get("error")
     assert all(a != b for a, b in zip(r["path"], r["path"][1:]))
+
+def test_line_parts_present():
+    r = plan_route(G, "莘庄", "人民广场")
+    assert r["ok"], r.get("error")
+    seg = r["segments"][0]
+    assert seg["line_parts"] and all("line" in p and p["stations"] for p in seg["line_parts"])
+    # 莘庄在1号线上，第一段线路应含1号线
+    assert any("1号线" in p["line"] for p in seg["line_parts"])
