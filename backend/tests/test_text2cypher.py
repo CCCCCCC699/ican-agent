@@ -3,7 +3,8 @@ from app.llm.client import LLMClient
 
 class FakeLLM:
     def __init__(self, reply): self.reply = reply
-    def chat(self, model=None, messages=None, format=None, **kw): return self.reply
+    def chat(self, model=None, messages=None, format=None, **kw):
+        return {"message": {"content": self.reply}}
 
 def test_valid_cypher_executed():
     llm = LLMClient("fake", _ollama=FakeLLM('{"cypher": "MATCH (ls:LineStation {station:\'人民广场\'}) RETURN ls.line AS line"}'))

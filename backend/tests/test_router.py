@@ -5,7 +5,8 @@ NAMES = ["莘庄", "人民广场", "徐家汇", "陆家嘴", "五角场"]
 
 def fake_llm(reply):
     class Fake:
-        def chat(self, model=None, messages=None, format=None, **kw): return reply
+        def chat(self, model=None, messages=None, format=None, **kw):
+            return {"message": {"content": reply}}
     return LLMClient(model="fake", _ollama=Fake())
 
 def test_route_plan_intent():
