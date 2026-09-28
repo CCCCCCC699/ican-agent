@@ -2,13 +2,12 @@ from fastapi.testclient import TestClient
 import app.main as main
 
 class FakeLLM:
-    def chat(self, model=None, messages=None, format=None, **kw):
-        system = messages[0]["content"] if messages else ""
+    def chat(self, system, user, json_mode=False):
         if "意图路由" in system:
-            return {"message": {"content": '{"intent":"info_query","question":"人民广场可以换乘哪几条线？"}'}}
+            return '{"intent":"info_query","question":"人民广场可以换乘哪几条线？"}'
         if "Schema" in system:
-            return {"message": {"content": '{"cypher": "MATCH (ls:LineStation {station:\'人民广场\'}) RETURN DISTINCT ls.line AS line"}'}}
-        return {"message": {"content": "1号线和2号线。"}}
+            return '{"cypher": "MATCH (ls:LineStation {station:\'人民广场\'}) RETURN DISTINCT ls.line AS line"}'
+        return "1号线和2号线。"
 
 class FakeStore:
     def __init__(self): self.queries = []
