@@ -21,3 +21,21 @@ def test_json_mode_sets_format():
     c = LLMClient(model="m", _ollama=fake)
     c.chat("s", "u", json_mode=True)
     assert fake.calls[0][2] == "json"
+
+def test_openai_compatible_branch(monkeypatch):
+    import sys
+    calls = {}
+    class FakeResp:
+        def raise_for_status(self): pass
+        def json(self): return {"choices": [{"message": {"content": "ok"}}]}
+    def fake_post(url, headers=None, json=None, timeout=None):
+        calls["url"] = url; calls["payload"] = json
+        return FakeResp()
+    class FakeHttpx:
+        post = staticmethod(fake_post)
+    monkeypatch.setitem(sys.modules, "httpx", FakeHttpx)
+    c = LLMClient(model="m", api_base="https://x/v1", api_key="k")
+    out = c.chat("s", "u", json_mode=True)
+    assert out == "ok"
+    assert calls["url"] == "https://x/v1/chat/completions"
+    assert calls["payload"]["response_format"] == {"type": "json_object"}

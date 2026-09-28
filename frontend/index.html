@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>申城智行 · 大模型×知识图谱出行智能体</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+</head>
+<body>
+<header class="header">
+  <h1>申城智行</h1>
+  <div class="subtitle">大模型 × 知识图谱 轨道交通出行智能体</div>
+  <div class="metro-dots" id="metro-dots"></div>
+</header>
+<main class="layout">
+  <section class="chat-panel">
+    <div class="messages" id="messages"></div>
+    <form class="input-bar" id="chat-form">
+      <input id="chat-input" placeholder="试试：从虹桥火车站到陆家嘴，经过徐家汇，避开人民广场" autocomplete="off">
+      <button type="submit">发送</button>
+    </form>
+  </section>
+  <aside class="trace-panel">
+    <h3>Agent 运行轨迹</h3>
+    <div id="trace"></div>
+    <h3>知识图谱</h3>
+    <div id="graph"></div>
+  </aside>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
