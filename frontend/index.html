@@ -3,32 +3,523 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>申城智行 · 大模型×知识图谱出行智能体</title>
-<link rel="stylesheet" href="style.css">
-<script src="https://cdn.bootcdn.net/ajax/libs/vis-network/9.1.9/standalone/umd/vis-network.min.js"
-        onerror="this.onerror=null;var s=document.createElement('script');s.src='https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js';document.head.appendChild(s)"></script>
+<title>申城智行 · 大模型×知识图谱轨道交通出行智能体</title>
+<script src="lib/vis-network.min.js"></script>
+<style>
+:root{
+  --red:#E4002B; --red-d:#c90026;
+  --bg:#eef1f8; --card:#ffffff;
+  --text:#17212b; --muted:#8a95a8;
+  --line:#e7eaf3; --line-soft:#f0f2f9;
+  --blue:#2f6bff; --green:#12b76a; --orange:#f79009; --purple:#7a5af8; --gray:#98a2b3;
+  --shadow:0 4px 20px rgba(23,33,43,.06); --shadow-lg:0 10px 34px rgba(23,33,43,.10);
+  --radius:18px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:-apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;background:linear-gradient(155deg,#eef1f8 0%,#e9edf6 45%,#f1eef5 100%);color:var(--text);display:flex;flex-direction:column;overflow:hidden}
+::-webkit-scrollbar{width:7px;height:7px}
+::-webkit-scrollbar-thumb{background:#d4dae8;border-radius:99px}
+::-webkit-scrollbar-thumb:hover{background:#c2c9dc}
+/* ===== 顶栏 ===== */
+header{height:62px;background:rgba(255,255,255,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid rgba(220,225,238,.9);display:flex;align-items:center;padding:0 22px;gap:13px;flex-shrink:0;z-index:10}
+.logo{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#E4002B 0%,#ff5a6e 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:17px;flex-shrink:0;box-shadow:0 4px 12px rgba(228,0,43,.32)}
+.brand{font-size:17px;font-weight:800;letter-spacing:.3px;line-height:1.2}
+.brand span{color:var(--red)}
+.sub{font-size:11.5px;color:var(--muted);letter-spacing:.2px}
+.spacer{flex:1}
+.ghostbtn{font-size:12.5px;color:#5b6480;background:transparent;border:1px solid var(--line);border-radius:999px;padding:6px 14px;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:5px}
+.ghostbtn:hover{border-color:var(--red);color:var(--red);background:#fff}
+.status{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);background:#fff;border:1px solid var(--line);padding:6px 13px;border-radius:999px;box-shadow:0 1px 4px rgba(23,33,43,.04)}
+.dot{width:8px;height:8px;border-radius:50%;background:#9ca3af}
+.status.online .dot{background:#22c55e;box-shadow:0 0 7px rgba(34,197,94,.8)}
+.status.demo .dot{background:#f59e0b;box-shadow:0 0 7px rgba(245,158,11,.7)}
+/* ===== 主体 ===== */
+main{flex:1;display:flex;gap:16px;padding:16px 18px;min-height:0;max-width:1440px;width:100%;margin:0 auto}
+.col-chat,.col-side{background:var(--card);border:1px solid rgba(222,227,240,.9);border-radius:var(--radius);box-shadow:var(--shadow);display:flex;flex-direction:column;min-width:0}
+.col-chat{flex:1}
+.col-side{width:410px;flex-shrink:0}
+/* ===== 聊天区 ===== */
+.msgs{flex:1;overflow-y:auto;padding:22px 22px 10px;display:flex;flex-direction:column;gap:18px;scroll-behavior:smooth}
+.welcome{margin:auto;max-width:480px;padding:10px 0 30px;text-align:center}
+.hero{width:64px;height:64px;margin:0 auto 16px;border-radius:22px;background:linear-gradient(135deg,#E4002B,#ff6a4d);display:flex;align-items:center;justify-content:center;font-size:30px;box-shadow:0 10px 26px rgba(228,0,43,.35);animation:float 3.5s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.welcome .big{font-size:23px;font-weight:800;margin-bottom:9px}
+.welcome p{color:var(--muted);font-size:13px;line-height:1.9}
+.featgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px;text-align:left}
+.feat{background:#f8f9fd;border:1px solid var(--line-soft);border-radius:14px;padding:12px 14px;cursor:pointer;transition:.18s;display:flex;gap:11px;align-items:center}
+.feat:hover{background:#fff;border-color:#ffb3c0;transform:translateY(-2px);box-shadow:0 6px 16px rgba(228,0,43,.10)}
+.feat .ic{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}
+.feat .t{font-size:13.5px;font-weight:700}
+.feat .d{font-size:11px;color:var(--muted);margin-top:2px}
+.feat .tag{font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:5px;margin-left:6px;vertical-align:1px}
+.msg{display:flex;gap:10px;max-width:88%;animation:msgIn .35s cubic-bezier(.2,.8,.3,1.05)}
+.msg.user{flex-direction:row-reverse;align-self:flex-end}
+@keyframes msgIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.avatar{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;margin-top:2px}
+.msg.bot .avatar{background:#fff;border:1.5px solid #ffccd3;box-shadow:0 2px 6px rgba(23,33,43,.08)}
+.msg.user .avatar{background:linear-gradient(135deg,#E4002B,#ff5a6e);color:#fff;font-size:12px;font-weight:700;box-shadow:0 3px 8px rgba(228,0,43,.3)}
+.msgbody{display:flex;flex-direction:column;min-width:0}
+.bubble{padding:12px 16px;font-size:14.5px;line-height:1.85;word-break:break-word;white-space:pre-wrap}
+.msg.user .bubble{background:linear-gradient(135deg,#E4002B 0%,#ee3d54 100%);color:#fff;border-radius:16px 16px 5px 16px;box-shadow:0 5px 16px rgba(228,0,43,.25)}
+.msg.bot .bubble{background:#fff;border:1px solid var(--line-soft);border-radius:16px 16px 16px 5px;box-shadow:0 2px 8px rgba(23,33,43,.05);max-width:640px}
+.bubble b{color:var(--red)}
+.bubble code{background:#f3f4fa;border:1px solid var(--line-soft);border-radius:6px;padding:1px 7px;font-family:"JetBrains Mono",Consolas,monospace;font-size:12.5px}
+.msg.user .bubble b,.msg.user .bubble code{color:#fff;background:rgba(255,255,255,.16);border:none}
+.time{font-size:10.5px;margin-top:6px;opacity:.55;letter-spacing:.3px}
+/* Agent 过程卡片 */
+.process{margin-top:9px;background:#f8fafd;border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:12px;padding:11px 13px;font-size:12.5px;width:100%;max-width:640px;box-shadow:0 2px 8px rgba(23,33,43,.04)}
+.proc-row{display:flex;gap:9px;margin:5px 0;align-items:flex-start;flex-wrap:wrap}
+.proc-step{font-weight:700;color:#4a5568;flex-shrink:0;padding-top:1px;font-size:12px}
+.badge{font-size:11.5px;padding:2.5px 11px;border-radius:999px;color:#fff;font-weight:700;letter-spacing:.3px;box-shadow:0 2px 5px rgba(0,0,0,.12)}
+.badge.route{background:linear-gradient(135deg,#2f6bff,#5c8dff)}
+.badge.line{background:linear-gradient(135deg,#0ea95e,#34c98b)}
+.badge.transfer{background:linear-gradient(135deg,#f79009,#ffb84d)}
+.badge.constraint{background:linear-gradient(135deg,#7a5af8,#9d84ff)}
+.badge.chat{background:linear-gradient(135deg,#98a2b3,#b7bfcd)}
+.cypher{background:#141a26;color:#dbe3f5;border-radius:10px;padding:10px 13px;font-family:"JetBrains Mono",Consolas,monospace;font-size:11.8px;line-height:1.7;white-space:pre-wrap;word-break:break-all;position:relative;flex:1;min-width:210px;box-shadow:inset 0 1px 3px rgba(0,0,0,.3)}
+.copybtn{position:absolute;top:7px;right:7px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.14);color:#c7d0e4;font-size:11px;padding:2.5px 9px;border-radius:6px;cursor:pointer;transition:.15s;font-family:inherit}
+.copybtn:hover{background:rgba(255,255,255,.22);color:#fff}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:3.5px 11px;border-radius:999px;background:#fff;border:1px solid var(--line);cursor:pointer;transition:.15s;box-shadow:0 1px 3px rgba(23,33,43,.04)}
+.chip:hover{border-color:var(--red);color:var(--red);transform:translateY(-1px);box-shadow:0 3px 8px rgba(228,0,43,.12)}
+.chip .t{font-size:9.5px;font-weight:700;color:#fff;padding:1px 6px;border-radius:5px}
+.chip .t.station{background:var(--blue)} .chip .t.line{background:var(--green)} .chip .t.rel{background:var(--purple)}
+.typing{display:inline-flex;gap:5px;padding:15px 18px}
+.typing i{width:7px;height:7px;background:#c3cadb;border-radius:50%;animation:blink 1.2s infinite}
+.typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
+/* 快捷问题 */
+.quick{display:flex;gap:8px;padding:10px 18px;flex-wrap:wrap;border-top:1px solid var(--line-soft)}
+.qchip{font-size:12.5px;color:#49546b;background:#f7f8fc;border:1px solid var(--line);border-radius:999px;padding:6.5px 14px 6.5px 12px;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:7px}
+.qchip:hover{border-color:var(--red);color:var(--red);background:#fff;transform:translateY(-1px);box-shadow:0 4px 10px rgba(228,0,43,.10)}
+.qchip .qdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+/* 输入栏 */
+.inputbar{display:flex;gap:10px;padding:12px 18px 18px;align-items:flex-end}
+.inputwrap{flex:1;display:flex;align-items:flex-end;background:#f7f8fc;border:1.5px solid var(--line);border-radius:16px;padding:6px 8px 6px 16px;transition:.18s}
+.inputwrap:focus-within{border-color:var(--red);background:#fff;box-shadow:0 0 0 4px rgba(228,0,43,.09)}
+.inputwrap textarea{flex:1;border:none;background:transparent;font-size:14.5px;font-family:inherit;resize:none;height:34px;max-height:120px;outline:none;line-height:1.6;color:var(--text)}
+.send{width:44px;height:44px;background:linear-gradient(135deg,#E4002B,#ff4d5e);color:#fff;border:none;border-radius:13px;font-size:18px;cursor:pointer;transition:.18s;flex-shrink:0;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(228,0,43,.35)}
+.send:hover{transform:translateY(-2px);box-shadow:0 7px 18px rgba(228,0,43,.45)}
+.send:active{transform:scale(.95)}
+.send:disabled{opacity:.5;cursor:not-allowed;transform:none}
+/* ===== 侧栏 ===== */
+.tabbar{display:flex;padding:10px 12px 0;gap:4px}
+.tabbar .seg{flex:1;display:flex;background:#f1f3f9;border-radius:12px;padding:3.5px}
+.tab{flex:1;text-align:center;padding:8px 0;font-size:13px;color:var(--muted);cursor:pointer;border-radius:9px;font-weight:700;transition:.18s}
+.tab.active{color:var(--red);background:#fff;box-shadow:0 2px 8px rgba(23,33,43,.10)}
+.tabpane{flex:1;overflow-y:auto;display:none;padding:14px 16px 18px}
+.tabpane.active{display:block}
+#graphbox{height:100%;min-height:330px;border-radius:14px;border:1px solid var(--line);background:linear-gradient(180deg,#fbfcff,#f6f8fd);overflow:hidden}
+.graph-hint{font-size:11.5px;color:var(--muted);line-height:1.9;margin-bottom:11px;background:#f8fafd;border:1px dashed var(--line);border-radius:11px;padding:9px 12px}
+.proc-detail .h{font-size:12.5px;font-weight:800;margin:14px 0 7px;color:#3c4657;display:flex;align-items:center;gap:7px}
+.proc-detail .h:first-child{margin-top:2px}
+.proc-detail .h::before{content:"";width:4px;height:14px;border-radius:3px;background:linear-gradient(180deg,#E4002B,#ff5a6e)}
+.legend{font-size:11.5px;color:var(--muted);display:flex;flex-direction:column;gap:5px;margin-top:12px;background:#f8fafd;border-radius:11px;padding:10px 13px;border:1px solid var(--line-soft)}
+.legend i{display:inline-block;width:16px;height:4px;border-radius:3px;margin-right:7px;vertical-align:middle}
+.legend i.dash{background:repeating-linear-gradient(90deg,#a5aec2 0 5px,transparent 5px 9px)}
+.empty-tip{color:#a5aec0;font-size:13px;margin-top:14px;text-align:center;line-height:2}
+/* ===== 响应式 ===== */
+@media (max-width:1000px){
+  body{overflow:auto}
+  main{flex-direction:column;overflow:visible}
+  .col-chat{min-height:56vh}
+  .col-side{width:100%;min-height:400px}
+  .sub{display:none}
+}
+</style>
 </head>
 <body>
-<header class="header">
-  <h1>申城智行</h1>
-  <div class="subtitle">大模型 × 知识图谱 轨道交通出行智能体</div>
-  <div class="metro-dots" id="metro-dots"></div>
+<header>
+  <div class="logo">申</div>
+  <div>
+    <div class="brand">申城<span>智行</span></div>
+    <div class="sub">大模型 × 知识图谱 · 轨道交通出行智能体</div>
+  </div>
+  <div class="spacer"></div>
+  <button class="ghostbtn" id="clearBtn">↺ 新对话</button>
+  <div class="status" id="status"><span class="dot"></span><span id="statusText">连接中…</span></div>
 </header>
-<main class="layout">
-  <section class="chat-panel">
-    <div class="messages" id="messages"></div>
-    <form class="input-bar" id="chat-form">
-      <input id="chat-input" placeholder="试试：从虹桥火车站到陆家嘴，经过徐家汇，避开人民广场" autocomplete="off">
-      <button type="submit">发送</button>
-    </form>
+
+<main>
+  <!-- ===== 左：聊天 ===== -->
+  <section class="col-chat">
+    <div class="msgs" id="msgs"></div>
+    <div class="quick" id="quick"></div>
+    <div class="inputbar">
+      <div class="inputwrap">
+        <textarea id="input" placeholder="用自然语言描述你的出行需求，例如：从虹桥火车站到陆家嘴怎么走最快？" rows="1"></textarea>
+      </div>
+      <button class="send" id="sendBtn" title="发送">➤</button>
+    </div>
   </section>
-  <aside class="trace-panel">
-    <h3>Agent 运行轨迹</h3>
-    <div id="trace"></div>
-    <h3>知识图谱</h3>
-    <div id="graph"></div>
-  </aside>
+
+  <!-- ===== 右：图谱 / Agent过程 ===== -->
+  <section class="col-side">
+    <div class="tabbar"><div class="seg">
+      <div class="tab active" data-pane="graph">🧭 知识图谱</div>
+      <div class="tab" data-pane="proc">🤖 Agent 过程</div>
+    </div></div>
+    <div class="tabpane active" id="pane-graph">
+      <div class="graph-hint">回答涉及的站点与线路关系实时展示：<br>● 圆点＝站点（按线路着色）　◆ 菱形＝换乘站<br>—— 实线＝同线相邻　┄ 虚线＝换乘关系（可点证据标签高亮对应节点）</div>
+      <div id="graphbox"></div>
+      <div class="legend">
+        <span><i style="background:#8CC220"></i>2号线　<i style="background:#E4002B"></i>1号线　<i style="background:#009DDC"></i>8号线　<i style="background:#C1A7E2"></i>10号线　<i style="background:#87189D"></i>11号线</span>
+        <span><i class="dash"></i>换乘关系（TRANSFER_TO）</span>
+      </div>
+    </div>
+    <div class="tabpane" id="pane-proc">
+      <div class="proc-detail" id="procDetail"><p class="empty-tip">发送问题后，这里展示<br>① 意图分类　② 生成的 Cypher　③ 溯源证据</p></div>
+    </div>
+  </section>
 </main>
-<script src="app.js"></script>
+
+<script>
+/* ================= 配置 ================= */
+// 后端地址自动探测：先同源（mock_server / 静态服务），再 FastAPI(8000)。
+// 固定地址请改：const API_BASE = 'http://localhost:8000';
+let API_BASE = '';
+const CANDIDATES = ['', 'http://localhost:8000'];
+const LINE_COLORS = {'1号线':'#E4002B','2号线':'#8CC220','3号线':'#FFD100','4号线':'#461D84','5号线':'#94409E','6号线':'#D6006D','7号线':'#ED6F00','8号线':'#009DDC','9号线':'#70C9DC','10号线':'#C1A7E2','11号线':'#87189D','12号线':'#007A60','13号线':'#E77CAE','14号线':'#827A04','15号线':'#BCA886','16号线':'#2BD5C7','17号线':'#BC796F','18号线':'#C4984F'};
+const DEFAULT_NODE_COLOR = '#64748b';
+const INTENT_COLOR = {'路线规划':'#2f6bff','约束路线规划':'#7a5af8','线路信息查询':'#12b76a','换乘查询':'#f79009','闲聊':'#98a2b3'};
+const DEMO_QS = [
+  '从虹桥火车站到陆家嘴怎么走最快？',
+  '从莘庄去五角场，途中经过徐家汇',
+  '2号线经过哪些换乘站？',
+  '人民广场可以换乘哪几条线？',
+  '帮我规划一条避开人民广场的路线'
+];
+
+/* ================= Mock 数据（后端未就绪时演示用） ================= */
+const MOCK = {
+  '虹桥|陆家嘴': {
+    intent:'路线规划', cypher:"MATCH p = shortestPath((a:LineStation {station_name:'虹桥火车站'})-[r:NEXT_STATION|TRANSFER_TO*]->(b:LineStation {station_name:'陆家嘴'})) RETURN p",
+    answer:'**推荐路线**\n\n乘坐 **2号线**（浦东国际机场方向），从 **虹桥火车站** 上车，经 中山公园 → 静安寺 → 人民广场 → 南京东路，共 **5 站**、约 **22 分钟** 直达 **陆家嘴**，无需换乘。\n\n💡 所有结论均来自知识图谱，可点击右侧溯源证据查看',
+    evidence:[{type:'站点',name:'虹桥火车站'},{type:'线路',name:'2号线'},{type:'关系',name:'NEXT_STATION×5'},{type:'站点',name:'陆家嘴'}],
+    graph:{nodes:[
+      {id:'虹桥火车站',label:'虹桥火车站',line:'2号线',transfer:true},
+      {id:'中山公园',label:'中山公园',line:'2号线',transfer:true},
+      {id:'静安寺',label:'静安寺',line:'2号线',transfer:true},
+      {id:'人民广场',label:'人民广场',line:'2号线',transfer:true},
+      {id:'南京东路',label:'南京东路',line:'2号线',transfer:true},
+      {id:'陆家嘴',label:'陆家嘴',line:'2号线',transfer:false}
+    ],edges:[
+      {from:'虹桥火车站',to:'中山公园',label:'21分钟'},
+      {from:'中山公园',to:'静安寺',label:'4分钟'},
+      {from:'静安寺',to:'人民广场',label:'6分钟'},
+      {from:'人民广场',to:'南京东路',label:'2分钟'},
+      {from:'南京东路',to:'陆家嘴',label:'2分钟'}
+    ]}
+  },
+  '莘庄': {
+    intent:'约束路线规划', cypher:"MATCH p1=shortestPath((a:LineStation {station_name:'莘庄'})-[r:NEXT_STATION|TRANSFER_TO*]->(x:LineStation {station_name:'徐家汇'})), p2=shortestPath((x)-[:NEXT_STATION|TRANSFER_TO*]->(b:LineStation {station_name:'五角场'})) RETURN p1,p2",
+    answer:'**带途经约束的路线** ✅ 途经点「徐家汇」已满足\n\n**第 1 段**：**1号线** 莘庄 → 徐家汇（约 20 分钟）\n**第 2 段**：徐家汇换乘 **11号线** → 交通大学（1 站）\n**第 3 段**：交通大学换乘 **10号线** → 五角场（约 25 分钟）\n\n全程约 **55 分钟**，换乘 2 次。',
+    evidence:[{type:'站点',name:'莘庄'},{type:'线路',name:'1号线'},{type:'站点',name:'徐家汇'},{type:'关系',name:'TRANSFER_TO'},{type:'线路',name:'10号线'},{type:'站点',name:'五角场'}],
+    graph:{nodes:[
+      {id:'莘庄',label:'莘庄',line:'1号线',transfer:false},
+      {id:'徐家汇',label:'徐家汇',line:'1号线',transfer:true},
+      {id:'交通大学',label:'交通大学',line:'11号线',transfer:true},
+      {id:'五角场',label:'五角场',line:'10号线',transfer:false}
+    ],edges:[
+      {from:'莘庄',to:'徐家汇',label:'1号线',dashes:false},
+      {from:'徐家汇',to:'交通大学',label:'换乘',dashes:true},
+      {from:'交通大学',to:'五角场',label:'10号线',dashes:false}
+    ]}
+  },
+  '2号线|换乘站': {
+    intent:'线路信息查询', cypher:"MATCH (ls:LineStation)-[:ON_LINE]->(l:Line {line_name:'2号线'}) WHERE ls.is_transfer = true RETURN ls.station_name, ls.station_order ORDER BY ls.station_order",
+    answer:'**2号线换乘站列表**（自西向东）：\n\n虹桥火车站（10号线/17号线）→ 中山公园（3号线/4号线）→ 静安寺（7号线/14号线）→ 人民广场（1号线/8号线）→ 世纪大道（4号线/6号线/9号线）→ 龙阳路（7号线/16号线/18号线/磁浮线）→ 广兰路（21号线）',
+    evidence:[{type:'线路',name:'2号线'},{type:'关系',name:'ON_LINE'},{type:'关系',name:'is_transfer=true'}],
+    graph:{nodes:[
+      {id:'虹桥火车站',label:'虹桥火车站',line:'2号线',transfer:true},
+      {id:'中山公园',label:'中山公园',line:'2号线',transfer:true},
+      {id:'静安寺',label:'静安寺',line:'2号线',transfer:true},
+      {id:'人民广场',label:'人民广场',line:'2号线',transfer:true},
+      {id:'世纪大道',label:'世纪大道',line:'2号线',transfer:true},
+      {id:'龙阳路',label:'龙阳路',line:'2号线',transfer:true}
+    ],edges:[
+      {from:'虹桥火车站',to:'中山公园'},{from:'中山公园',to:'静安寺'},
+      {from:'静安寺',to:'人民广场'},{from:'人民广场',to:'世纪大道'},
+      {from:'世纪大道',to:'龙阳路'}
+    ]}
+  },
+  '人民广场': {
+    intent:'换乘查询', cypher:"MATCH (ls:LineStation {station_name:'人民广场'})-[:TRANSFER_TO]->(t:LineStation)-[:ON_LINE]->(l:Line) RETURN DISTINCT l.line_name, t.transfer_time",
+    answer:'**人民广场** 是 **1号线、2号线、8号线** 三线换乘站。\n\n- 1号线 ↔ 2号线：换乘步行约 4 分钟\n- 1号线 ↔ 8号线：换乘步行约 3 分钟\n- 2号线 ↔ 8号线：换乘步行约 3 分钟\n\n人民广场位于黄浦区，是上海地铁客流量最大的车站之一。',
+    evidence:[{type:'站点',name:'人民广场'},{type:'关系',name:'TRANSFER_TO×3'},{type:'线路',name:'1号线'},{type:'线路',name:'2号线'},{type:'线路',name:'8号线'}],
+    graph:{nodes:[
+      {id:'人民广场',label:'人民广场',line:'2号线',transfer:true},
+      {id:'人民广场1',label:'人民广场',line:'1号线',transfer:true},
+      {id:'人民广场8',label:'人民广场',line:'8号线',transfer:true}
+    ],edges:[
+      {from:'人民广场',to:'人民广场1',label:'换乘4分钟',dashes:true},
+      {from:'人民广场',to:'人民广场8',label:'换乘3分钟',dashes:true}
+    ]}
+  },
+  '避开': {
+    intent:'约束路线规划', cypher:"MATCH p = shortestPath((a:LineStation {station_name:'虹桥火车站'})-[r:NEXT_STATION|TRANSFER_TO*]->(b:LineStation {station_name:'陆家嘴'})) WHERE NONE(n IN nodes(p) WHERE n.station_name = '人民广场') RETURN p",
+    answer:'**带避让约束的路线** ✅ 已避开「人民广场」\n\n**10号线** 虹桥火车站 → 南京东路（约 28 分钟）\n南京东路换乘 **2号线** → 陆家嘴（1 站，约 4 分钟）\n\n全程约 **36 分钟**，换乘 1 次。（较直达方案多约 14 分钟，但成功避开客流大站）',
+    evidence:[{type:'站点',name:'虹桥火车站'},{type:'线路',name:'10号线'},{type:'关系',name:'NEXT_STATION'},{type:'站点',name:'南京东路'},{type:'线路',name:'2号线'},{type:'站点',name:'陆家嘴'}],
+    graph:{nodes:[
+      {id:'虹桥火车站',label:'虹桥火车站',line:'10号线',transfer:true},
+      {id:'交通大学',label:'交通大学',line:'10号线',transfer:true},
+      {id:'新天地',label:'新天地',line:'10号线',transfer:true},
+      {id:'南京东路',label:'南京东路',line:'10号线',transfer:true},
+      {id:'陆家嘴',label:'陆家嘴',line:'2号线',transfer:false}
+    ],edges:[
+      {from:'虹桥火车站',to:'交通大学'},{from:'交通大学',to:'新天地'},
+      {from:'新天地',to:'南京东路'},{from:'南京东路',to:'陆家嘴',label:'换乘',dashes:true}
+    ]}
+  }
+};
+function matchMock(q){
+  if (q.includes('避开')) return JSON.parse(JSON.stringify(MOCK['避开']));
+  if (q.includes('人民广场') && q.includes('换乘')) return JSON.parse(JSON.stringify(MOCK['人民广场']));
+  if (q.includes('虹桥') && q.includes('陆家嘴')) return JSON.parse(JSON.stringify(MOCK['虹桥|陆家嘴']));
+  if (q.includes('莘庄')) return JSON.parse(JSON.stringify(MOCK['莘庄']));
+  if (q.includes('2号线') || q.includes('二号线')) return JSON.parse(JSON.stringify(MOCK['2号线|换乘站']));
+  const m = JSON.parse(JSON.stringify(MOCK['虹桥|陆家嘴']));
+  m.answer = '（演示模式）我收到了你的问题：“' + q + '”\n\n当前后端尚未接入，此回复为前端演示数据。接入 FastAPI 后端后，将由 意图路由 → Text2Cypher → 答案生成 三 Agent 流水线真实作答。';
+  return m;
+}
+
+/* ================= 工具 ================= */
+const $ = s => document.querySelector(s);
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function mdInline(s){
+  return esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/`(.+?)`/g,'<code>$1</code>');
+}
+function mdToHtml(s){
+  return s.split('\n').map(line=>{
+    const t = line.trim();
+    if (!t) return '<br>';
+    if (/^[-•]/.test(t)) return '· ' + mdInline(t.replace(/^[-•]\s*/,''));
+    return mdInline(line);
+  }).join('<br>');
+}
+function nowTime(){
+  const d = new Date();
+  return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+
+/* ================= 图谱 ================= */
+let network = null;
+function renderGraph(g, highlightId){
+  if (!g || !g.nodes || !g.nodes.length) return;
+  const container = $('#graphbox');
+  const nodes = g.nodes.map(n=>({
+    id:n.id, label:n.label, shape: n.transfer ? 'diamond' : 'dot',
+    size: n.transfer ? 16 : 12,
+    color:{background: LINE_COLORS[n.line] || DEFAULT_NODE_COLOR, border:'#ffffff', highlight:{background:LINE_COLORS[n.line]||DEFAULT_NODE_COLOR, border:'#E4002B'}},
+    font:{size:12, color:'#3a4254', face:'Microsoft YaHei', strokeWidth:4, strokeColor:'#ffffff'}
+  }));
+  const edges = g.edges.map((e,i)=>{
+    const fromNode = g.nodes.find(n=>n.id===e.from);
+    return {
+      id:e.from+'-'+e.to+'-'+i, from:e.from, to:e.to, label:e.label||'',
+      dashes: !!e.dashes,
+      color:{color: e.dashes ? '#9aa4b8' : (LINE_COLORS[fromNode && fromNode.line] || '#9aa4b8'), highlight:'#E4002B', opacity:.85},
+      arrows:'to', font:{size:10, color:'#6b7488', align:'top', background:'#ffffff', strokeWidth:3, strokeColor:'#ffffff'},
+      smooth:{enabled:true, type:'cubicBezier', forceDirection: e.dashes?'vertical':'horizontal', roundness:.5},
+      width: e.dashes?1.2:2.6, length: e.dashes?280:160
+    };
+  });
+  const data = {nodes:new vis.DataSet(nodes), edges:new vis.DataSet(edges)};
+  const options = {physics:{enabled:false}, interaction:{hover:true, tooltipDelay:100}};
+  if (network){ network.setData(data); }
+  else { network = new vis.Network(container, data, options); }
+  if (highlightId){
+    try { network.selectNodes([highlightId], true); } catch(e){}
+    setTimeout(()=>{ try{network.fit({nodes:[highlightId], animation:{duration:500,easingFunction:'easeInOutQuad'}});}catch(e){} }, 120);
+  } else {
+    setTimeout(()=>{ try{network.fit({animation:{duration:500,easingFunction:'easeInOutQuad'}});}catch(e){} }, 120);
+  }
+}
+
+/* ================= 聊天 ================= */
+const intentClass = { '路线规划':'route','约束路线规划':'constraint','线路信息查询':'line','换乘查询':'transfer','闲聊':'chat' };
+function addMsg(role, text, proc){
+  const msgs = $('#msgs');
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ' + (role==='user'?'user':'bot');
+  const avatar = document.createElement('div');
+  avatar.className = 'avatar';
+  avatar.textContent = role==='user' ? '我' : '🚇';
+  const body = document.createElement('div');
+  body.className = 'msgbody';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.innerHTML = mdToHtml(text) + '<div class="time">' + nowTime() + '</div>';
+  body.appendChild(bubble);
+  if (proc){
+    const card = document.createElement('div');
+    card.className = 'process';
+    card.style.borderLeftColor = INTENT_COLOR[proc.intent] || '#98a2b3';
+    card.innerHTML =
+      '<div class="proc-row"><span class="proc-step">① 意图分类</span><span class="badge '+(intentClass[proc.intent]||'chat')+'">'+esc(proc.intent||'未知')+'</span></div>' +
+      '<div class="proc-row"><span class="proc-step">② 生成 Cypher</span><div class="cypher">'+esc(proc.cypher||'')+'<button class="copybtn">复制</button></div></div>' +
+      '<div class="proc-row"><span class="proc-step">③ 溯源证据</span>' +
+        (proc.evidence||[]).map(e=>{
+          const t = e.type==='站点'?'station':e.type==='线路'?'line':'rel';
+          return '<span class="chip" data-node="'+esc(e.name)+'"><span class="t '+t+'">'+esc(e.type)+'</span>'+esc(e.name)+'</span>';
+        }).join('') +
+      '</div>';
+    body.appendChild(card);
+    card.querySelector('.copybtn').addEventListener('click', function(){
+      navigator.clipboard.writeText(proc.cypher||'').then(()=>{this.textContent='已复制';setTimeout(()=>this.textContent='复制',1200);});
+    });
+    card.querySelectorAll('.chip').forEach(ch=>{
+      ch.addEventListener('click', ()=>renderGraph(proc.graph, ch.dataset.node));
+    });
+  }
+  wrap.appendChild(avatar);
+  wrap.appendChild(body);
+  msgs.appendChild(wrap);
+  msgs.scrollTop = msgs.scrollHeight;
+  renderProcDetail(proc);
+  return wrap;
+}
+function showTyping(){
+  const msgs = $('#msgs');
+  const t = document.createElement('div');
+  t.className = 'msg bot'; t.id = 'typing';
+  t.innerHTML = '<div class="avatar">🚇</div><div class="msgbody"><div class="bubble typing"><i></i><i></i><i></i></div></div>';
+  msgs.appendChild(t); msgs.scrollTop = msgs.scrollHeight;
+}
+function hideTyping(){ const t = $('#typing'); if (t) t.remove(); }
+
+function renderProcDetail(proc){
+  if (!proc) return;
+  const el = $('#procDetail');
+  el.innerHTML =
+    '<div class="h">① 意图分类</div><span class="badge '+(intentClass[proc.intent]||'chat')+'">'+esc(proc.intent||'未知')+'</span>' +
+    '<div class="h">② 生成的 Cypher（白名单校验通过 · 仅 MATCH）</div><div class="cypher">'+esc(proc.cypher||'')+'<button class="copybtn">复制</button></div>' +
+    '<div class="h">③ 溯源证据（来自知识图谱节点/关系）</div>' +
+    (proc.evidence||[]).map(e=>{
+      const t = e.type==='站点'?'station':e.type==='线路'?'line':'rel';
+      return '<span class="chip" data-node="'+esc(e.name)+'" style="margin:3px 6px 3px 0"><span class="t '+t+'">'+esc(e.type)+'</span>'+esc(e.name)+'</span>';
+    }).join('') +
+    (proc.elapsed_ms ? '<div class="h">⏱ 耗时</div><span style="font-size:12.5px;color:#6b7488">' + proc.elapsed_ms + ' ms（含本地大模型推理）</span>' : '');
+  const btn = el.querySelector('.copybtn');
+  if (btn) btn.addEventListener('click', function(){
+    navigator.clipboard.writeText(proc.cypher||'').then(()=>{this.textContent='已复制';setTimeout(()=>this.textContent='复制',1200);});
+  });
+  el.querySelectorAll('.chip').forEach(ch=>{
+    ch.addEventListener('click', ()=>renderGraph(proc.graph, ch.dataset.node));
+  });
+}
+
+async function detectApi(){
+  for (const base of CANDIDATES){
+    try{
+      const ctrl = new AbortController();
+      const timer = setTimeout(()=>ctrl.abort(), 2500);
+      const r = await fetch(base + '/health', {signal:ctrl.signal});
+      clearTimeout(timer);
+      if (r.ok){ API_BASE = base; return true; }
+    }catch(e){}
+  }
+  return false;
+}
+
+async function send(q){
+  q = q.trim();
+  if (!q) return;
+  $('#sendBtn').disabled = true;
+  addMsg('user', q);
+  showTyping();
+  let resp = null;
+  try{
+    const ctrl = new AbortController();
+    const timer = setTimeout(()=>ctrl.abort(), 20000);
+    const r = await fetch(API_BASE + '/api/chat', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({message:q}), signal:ctrl.signal
+    });
+    clearTimeout(timer);
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    resp = await r.json();
+  }catch(e){ resp = null; }
+  hideTyping();
+  if (resp){
+    const proc = {intent:resp.intent, cypher:resp.cypher, evidence:resp.evidence, graph:resp.graph, elapsed_ms:resp.elapsed_ms};
+    addMsg('bot', resp.answer, proc);
+    if (resp.graph) renderGraph(resp.graph);
+  } else {
+    const m = matchMock(q);
+    const proc = {intent:m.intent, cypher:m.cypher, evidence:m.evidence, graph:m.graph};
+    addMsg('bot', m.answer, proc);
+    renderGraph(m.graph);
+    if (API_BASE){ setStatus('demo'); }
+  }
+}
+
+function setStatus(mode){
+  const el = $('#status');
+  el.className = 'status ' + mode;
+  $('#statusText').textContent = mode==='online' ? '后端在线' : '演示模式（后端未连接）';
+}
+
+/* ================= 欢迎页 ================= */
+const FEATS = [
+  {ic:'🧭', bg:'#e8f0ff', t:'路线规划', d:'起终点最优路线·耗时·换乘', tag:'基本', tagbg:'#2f6bff', q:DEMO_QS[0]},
+  {ic:'🚉', bg:'#e6f9f0', t:'线路查询', d:'线路站点·序位·换乘站', tag:'基本', tagbg:'#12b76a', q:DEMO_QS[2]},
+  {ic:'🔁', bg:'#fff4e3', t:'换乘查询', d:'某站可换线路·方式·耗时', tag:'基本', tagbg:'#f79009', q:DEMO_QS[3]},
+  {ic:'✨', bg:'#f1ecff', t:'约束规划', d:'途经点/避让站·多约束最优', tag:'创新', tagbg:'#7a5af8', q:DEMO_QS[1]}
+];
+function welcomeHTML(){
+  return '<div class="welcome">' +
+    '<div class="hero">🚇</div>' +
+    '<div class="big">你好，我是申城智行</div>' +
+    '<p>用自然语言描述出行需求，多智能体协作 + 知识图谱<br>给出<b>可解释、可溯源</b>的出行方案<br>点击下方功能卡片或快捷问题开始 👇</p>' +
+    '<div class="featgrid">' + FEATS.map(f=>
+      '<div class="feat" data-q="'+esc(f.q)+'"><div class="ic" style="background:'+f.bg+'">'+f.ic+'</div>' +
+      '<div><div class="t">'+f.t+'<span class="tag" style="background:'+f.tagbg+'22;color:'+f.tagbg+'">'+f.tag+'</span></div>' +
+      '<div class="d">'+f.d+'</div></div></div>'
+    ).join('') + '</div></div>';
+}
+function resetWelcome(){
+  $('#msgs').innerHTML = welcomeHTML();
+  document.querySelectorAll('.feat').forEach(f=>{
+    f.addEventListener('click', ()=>{ const q = f.dataset.q; $('#input').value = q; $('#input').focus(); autoGrow(); send(q); });
+  });
+}
+
+/* ================= 初始化 ================= */
+function initQuick(){
+  const dotColors = ['#2f6bff','#7a5af8','#12b76a','#f79009','#e4002b'];
+  $('#quick').innerHTML = DEMO_QS.map((q,i)=>'<span class="qchip"><span class="qdot" style="background:'+dotColors[i]+'"></span>'+esc(q)+'</span>').join('');
+  document.querySelectorAll('.qchip').forEach(ch=>{
+    ch.addEventListener('click', ()=>{ $('#input').value = ch.textContent.trim(); $('#input').focus(); autoGrow(); });
+  });
+}
+function autoGrow(){
+  const ta = $('#input');
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+}
+document.addEventListener('DOMContentLoaded', async ()=>{
+  initQuick();
+  resetWelcome();
+  $('#sendBtn').addEventListener('click', ()=>{ const v=$('#input').value; $('#input').value=''; autoGrow(); send(v); });
+  $('#input').addEventListener('keydown', e=>{
+    if (e.key==='Enter' && !e.shiftKey){ e.preventDefault(); const v=$('#input').value; $('#input').value=''; autoGrow(); send(v); }
+  });
+  $('#input').addEventListener('input', autoGrow);
+  $('#clearBtn').addEventListener('click', ()=>{ resetWelcome(); });
+  document.querySelectorAll('.tab').forEach(t=>{
+    t.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+      document.querySelectorAll('.tabpane').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      $('#pane-'+t.dataset.pane).classList.add('active');
+      if (t.dataset.pane==='graph' && network) setTimeout(()=>network.redraw(),50);
+    });
+  });
+  const ok = await detectApi();
+  setStatus(ok ? 'online' : 'demo');
+  setTimeout(()=>send(DEMO_QS[0]), 800);
+});
+</script>
 </body>
 </html>
