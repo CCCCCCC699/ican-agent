@@ -2,6 +2,15 @@
 import csv
 from neo4j import GraphDatabase
 
+def _clean_rows(rows, required):
+    """清洗CSV行：剔除None键（列数超标的坏行）与必填字段缺失的行。"""
+    out = []
+    for r in rows:
+        d = {k: v for k, v in r.items() if k is not None}
+        if all(d.get(k) for k in required):
+            out.append(d)
+    return out
+
 class Neo4jStore:
     def __init__(self, settings):
         self.settings = settings
@@ -12,25 +21,28 @@ class Neo4jStore:
         self._driver.close()
 
     def import_from_csv(self, data_dir):
-        def tx(tx):
-            tx.run("MATCH (n) DETACH DELETE n")
+        # 注意：Neo4j禁止写查询与Schema修改同事务，必须分session执行
+        with self._driver.session() as s:
+            s.run("MATCH (n) DETACH DELETE n")
+        with self._driver.session() as s:
             for query in [
                 "CREATE CONSTRAINT IF NOT EXISTS FOR (ls:LineStation) REQUIRE ls.id IS UNIQUE",
                 "CREATE CONSTRAINT IF NOT EXISTS FOR (l:Line) REQUIRE l.id IS UNIQUE",
             ]:
-                tx.run(query)
-        with self._driver.session() as s:
-            s.execute_write(tx)
+                s.run(query)
         with self._driver.session() as s:
             with open(data_dir / "lines.csv", encoding="utf-8") as f:
-                rows = [r for r in csv.DictReader(f)]
+                rows = _clean_rows(list(csv.DictReader(f)), ["line_id", "line_name"])
             s.run("UNWIND $rows AS r MERGE (l:Line {id: r['line_id']}) "
                   "SET l.name = r['line_name'], l.color = r['color']", rows=rows)
             with open(data_dir / "line_stations.csv", encoding="utf-8") as f:
-                rows = [r for r in csv.DictReader(f)]
+                rows = _clean_rows(list(csv.DictReader(f)), ["line_station_id", "station_name"])
+            for r in rows:
+                r["is_transfer"] = str(r.get("is_transfer") or "").strip().lower() in ("true", "1")
+                r["station_order"] = int(r.get("station_order") or 0)
             s.run("UNWIND $rows AS r MERGE (ls:LineStation {id: r['line_station_id']}) "
                   "SET ls.station = r['station_name'], ls.line = r['line_name'], "
-                  "ls.order = toInteger(r['station_order']), ls.is_transfer = r['is_transfer']", rows=rows)
+                  "ls.order = r['station_order'], ls.is_transfer = r['is_transfer']", rows=rows)
             s.run("MATCH (ls:LineStation), (l:Line) WHERE ls.line = l.name "
                   "MERGE (ls)-[:ON_LINE]->(l)")
             # 同线相邻关系
@@ -38,7 +50,10 @@ class Neo4jStore:
                   "WHERE a.line = b.line AND a.order = b.order - 1 "
                   "MERGE (a)-[:NEXT_STATION]->(b)")
             with open(data_dir / "transfers.csv", encoding="utf-8") as f:
-                rows = [r for r in csv.DictReader(f)]
+                rows = _clean_rows(list(csv.DictReader(f)),
+                                   ["from_line_station_id", "to_line_station_id"])
+            for r in rows:
+                r["transfer_time"] = r.get("transfer_time") or "5"
             s.run("UNWIND $rows AS r MATCH (a:LineStation {id: r['from_line_station_id']}), "
                   "(b:LineStation {id: r['to_line_station_id']}) "
                   "MERGE (a)-[:TRANSFER_TO {transfer_type: r['transfer_type'], "
@@ -51,8 +66,8 @@ class Neo4jStore:
     def preview_subgraph(self, station: str, depth: int = 1) -> dict:
         with self._driver.session() as s:
             result = s.run(
-                "MATCH p=(a:LineStation)-[*1..$d]-(b:LineStation) "
-                "WHERE a.station = $station RETURN p LIMIT 100", d=depth, station=station)
+                f"MATCH p=(a:LineStation)-[*1..{int(depth)}]-(b:LineStation) "
+                "WHERE a.station = $station RETURN p LIMIT 100", station=station)
             nodes, edges = {}, []
             for record in result:
                 for rel in record["p"].relationships:
