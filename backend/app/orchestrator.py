@@ -19,8 +19,26 @@ INTENT_LINE = "线路信息查询"
 INTENT_TRANSFER = "换乘查询"
 INTENT_CHAT = "闲聊"
 
-ROUTE_CYPHER_HINT = ("确定性图算法：Dijkstra最短路 + 途经点分段 + 避让站剔除（NetworkX）· "
-                     "不经过LLM生成，从机制上杜绝编造路线")
+def _route_cypher(start: str, end: str, via: list[str], avoid: list[str]) -> str:
+    """路线规划的等效图谱查询语义（实际计算走确定性图算法，保证正确性）。"""
+    avoid_expr = ""
+    if avoid:
+        names = ", ".join(f"'{s}'" for s in avoid)
+        avoid_expr = f"\nWHERE NONE(n IN nodes(p) WHERE n.station IN [{names}])"
+    lines = [
+        "// 实际执行：NetworkX确定性图算法（Dijkstra最短路 + 途经点分段 + 避让站剔除）",
+        f"// 等效的图谱查询语义如下：",
+        f"MATCH (a:LineStation {{station:'{start}'}}), (b:LineStation {{station:'{end}'}})",
+        "MATCH p = shortestPath((a)-[:NEXT_STATION|TRANSFER_TO*]-(b))",
+    ]
+    if via:
+        vias = "、".join(via)
+        lines.append(f"// 途经约束：{vias}（分段规划后拼接）")
+    if avoid:
+        lines.append(f"// 避让约束：{'、'.join(avoid)}")
+        lines.append(avoid_expr.strip())
+    lines.append("RETURN [n IN nodes(p) | n.station] AS route, length(p) AS steps")
+    return "\n".join(lines)
 
 
 def _intent_label(intent_key: str, question: str, args: dict) -> str:
@@ -142,7 +160,8 @@ class Orchestrator:
                 if not plan["ok"]:
                     trace["answer"] = plan["error"]
                 else:
-                    trace["cypher"] = ROUTE_CYPHER_HINT
+                    trace["cypher"] = _route_cypher(args["from"], args["to"],
+                                                    args.get("via", []), args.get("avoid", []))
                     trace["evidence"] = _route_evidence(plan)
                     trace["graph"] = _route_graph(plan)
                     evidence_text = format_plan_for_llm(plan)
