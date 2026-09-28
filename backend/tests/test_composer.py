@@ -3,8 +3,8 @@ from app.llm.client import LLMClient
 
 def test_compose_passes_evidence():
     class Fake:
-        def chat(self, system, user, json_mode=False):
-            assert "人民广场" in user
+        def chat(self, model=None, messages=None, format=None, **kw):
+            assert "人民广场" in messages[1]["content"]
             return "1号线和2号线都在人民广场换乘。"
     r = compose_answer(LLMClient("fake", _ollama=Fake()), "人民广场能换乘哪几条线？", [{"line": "1号线"}, {"line": "2号线"}])
     assert "换乘" in r
