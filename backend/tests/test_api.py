@@ -8,6 +8,8 @@ class FakeLLM:
                 return '{"intent":"route_plan","from":"莘庄","to":"人民广场","via":[],"avoid":[]}'
             if "路线" in user:
                 return '{"intent":"route_plan","from":"","to":""}'
+            if "挤" in user or "人多" in user:
+                return '{"intent":"congestion_query","line":"1号线"}'
             if "换乘" in user:
                 return '{"intent":"info_query","question":"人民广场可以换乘哪几条线？"}'
             return '{"intent":"info_query","question":"' + user + '"}'
@@ -53,6 +55,14 @@ def test_chat_route_plan_missing_station():
     r = client.post("/api/chat", json={"message": "帮我规划一条路线"})
     assert r.status_code == 200
     assert "起点和终点" in r.json()["answer"]
+
+def test_chat_congestion():
+    r = client.post("/api/chat", json={"message": "现在1号线挤不挤？"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["intent"] == "拥挤查询"
+    assert data["answer"] and data["evidence"]
+    assert any(e["type"] == "线路" and e["name"] == "1号线" for e in data["evidence"])
 
 def test_health():
     assert client.get("/health").json() == {"status": "ok"}

@@ -75,6 +75,7 @@ main{flex:1;display:flex;gap:16px;padding:16px 18px;min-height:0;max-width:1440p
 .badge.route{background:linear-gradient(135deg,#2f6bff,#5c8dff)}
 .badge.line{background:linear-gradient(135deg,#0ea95e,#34c98b)}
 .badge.transfer{background:linear-gradient(135deg,#f79009,#ffb84d)}
+.badge.congestion{background:linear-gradient(135deg,#e11d48,#fb7185)}
 .badge.constraint{background:linear-gradient(135deg,#7a5af8,#9d84ff)}
 .badge.chat{background:linear-gradient(135deg,#98a2b3,#b7bfcd)}
 .cypher{background:#141a26;color:#dbe3f5;border-radius:10px;padding:10px 13px;font-family:"JetBrains Mono",Consolas,monospace;font-size:11.8px;line-height:1.7;white-space:pre-wrap;word-break:break-all;position:relative;flex:1;min-width:210px;box-shadow:inset 0 1px 3px rgba(0,0,0,.3)}
@@ -181,7 +182,7 @@ let API_BASE = '';
 const CANDIDATES = ['', 'http://localhost:8000'];
 const LINE_COLORS = {'1号线':'#E4002B','2号线':'#8CC220','3号线':'#FFD100','4号线':'#461D84','5号线':'#94409E','6号线':'#D6006D','7号线':'#ED6F00','8号线':'#009DDC','9号线':'#70C9DC','10号线':'#C1A7E2','11号线':'#87189D','12号线':'#007A60','13号线':'#E77CAE','14号线':'#827A04','15号线':'#BCA886','16号线':'#2BD5C7','17号线':'#BC796F','18号线':'#C4984F'};
 const DEFAULT_NODE_COLOR = '#64748b';
-const INTENT_COLOR = {'路线规划':'#2f6bff','约束路线规划':'#7a5af8','线路信息查询':'#12b76a','换乘查询':'#f79009','闲聊':'#98a2b3'};
+const INTENT_COLOR = {'路线规划':'#2f6bff','约束路线规划':'#7a5af8','线路信息查询':'#12b76a','换乘查询':'#f79009','拥挤查询':'#e11d48','闲聊':'#98a2b3'};
 const DEMO_QS = [
   '从虹桥火车站到陆家嘴怎么走最快？',
   '从莘庄去五角场，途中经过徐家汇',
@@ -337,7 +338,7 @@ function renderGraph(g, highlightId){
 }
 
 /* ================= 聊天 ================= */
-const intentClass = { '路线规划':'route','约束路线规划':'constraint','线路信息查询':'line','换乘查询':'transfer','闲聊':'chat' };
+const intentClass = { '路线规划':'route','约束路线规划':'constraint','线路信息查询':'line','换乘查询':'transfer','拥挤查询':'congestion','闲聊':'chat' };
 function addMsg(role, text, proc){
   const msgs = $('#msgs');
   const wrap = document.createElement('div');

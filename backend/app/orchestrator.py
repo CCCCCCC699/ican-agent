@@ -6,12 +6,14 @@
  elapsed_ms: int, intent_key: 内部英文意图}
 """
 import time
+from datetime import datetime
 
 from app.agents.router import route_intent
 from app.agents.text2cypher import text_to_cypher
 from app.agents.composer import compose_answer, format_plan_for_llm
 from app.graph.planner import plan_route
-from app.graph.resolver import load_station_names
+from app.graph.resolver import load_station_names, load_line_names
+from app.graph.congestion import load_congestion, query_congestion
 
 INTENT_ROUTE = "路线规划"
 INTENT_CONSTRAINT = "约束路线规划"
@@ -46,6 +48,8 @@ def _intent_label(intent_key: str, question: str, args: dict) -> str:
         return INTENT_CONSTRAINT if (args.get("via") or args.get("avoid")) else INTENT_ROUTE
     if intent_key == "info_query":
         return INTENT_TRANSFER if ("换乘" in question or "换成" in question or "几条线" in question) else INTENT_LINE
+    if intent_key == "congestion_query":
+        return "拥挤查询"
     return INTENT_CHAT
 
 
@@ -142,10 +146,27 @@ class Orchestrator:
     def __init__(self, llm, store, graph, data_dir, station_names=None):
         self.llm, self.store, self.graph, self.data_dir = llm, store, graph, data_dir
         self.station_names = station_names or load_station_names(data_dir)
+        self.line_names = load_line_names(data_dir)
+        self.congestion = load_congestion(data_dir)
+
+    def _crowd_text(self, lines: list[str], now: datetime) -> tuple[str, list[dict]]:
+        """生成拥挤度参考文本与证据芯片（线路×当前时段）。"""
+        text_parts, chips = [], []
+        for line in lines:
+            info = query_congestion(self.congestion, line, now)
+            if not info:
+                continue
+            text_parts.append(f"{line}：{info['slot']}时段预计{info['level']}"
+                              f"（满载率约{info['occupancy_pct']}%）")
+            chips.append({"type": "关系", "name": f"{line}·{info['level']}"})
+        if text_parts:
+            return (f"拥挤度参考（{now.strftime('%H:%M')}，{info['weekday_label']}）：\n"
+                    + "\n".join(text_parts)), chips
+        return "", []
 
     def handle(self, message: str) -> dict:
         t0 = time.time()
-        routed = route_intent(self.llm, message, self.station_names)
+        routed = route_intent(self.llm, message, self.station_names, self.line_names)
         intent_key = routed["intent"]
         args = routed["args"]
         trace = {"intent": _intent_label(intent_key, message, args),
@@ -172,6 +193,13 @@ class Orchestrator:
                         constraints.append(f"避开{'、'.join(args['avoid'])}")
                     if constraints:
                         evidence_text += "\n已满足约束：" + "；".join(constraints)
+                    lines = list(dict.fromkeys(
+                        p["line"] for seg in plan["segments"]
+                        for p in seg.get("line_parts", [])))
+                    crowd_text, crowd_chips = self._crowd_text(lines, datetime.now())
+                    if crowd_text:
+                        evidence_text += "\n" + crowd_text
+                        trace["evidence"] += crowd_chips
                     trace["answer"] = compose_answer(self.llm, message, [{"plan": evidence_text}])
         elif intent_key == "info_query":
             result = text_to_cypher(self.llm, args["question"], self.store.run_read_query)
@@ -183,6 +211,22 @@ class Orchestrator:
                 trace["graph"] = _info_graph(self.store, args["question"],
                                              self.station_names, trace["evidence"])
                 trace["answer"] = compose_answer(self.llm, args["question"], result["records"])
+        elif intent_key == "congestion_query":
+            line = args.get("line")
+            if not line:
+                # 未指明线路时从问题文本匹配（最长匹配优先）
+                line = max((n for n in self.line_names if n in message), key=len, default=None)
+            if not line:
+                trace["answer"] = "请告诉我线路名，例如：现在1号线挤不挤？"
+            else:
+                info = query_congestion(self.congestion, line, datetime.now())
+                if not info:
+                    trace["answer"] = f"暂未收录「{line}」的拥挤度数据，敬请谅解。"
+                else:
+                    trace["evidence"] = [{"type": "线路", "name": line},
+                                         {"type": "关系", "name": f"{info['slot']}·{info['level']}"}]
+                    trace["answer"] = compose_answer(
+                        self.llm, message, [{"congestion": info}])
         else:
             trace["answer"] = args.get("reply", "你好，我是申城智行")
         trace["elapsed_ms"] = int((time.time() - t0) * 1000)

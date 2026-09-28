@@ -25,3 +25,14 @@ def test_llm_garbage_output_falls_back():
     reply = "抱歉我不会"
     r = route_intent(fake_llm(reply), "2号线经过哪些换乘站？", NAMES)
     assert r["intent"] == "info_query"  # 解析失败兜底为信息查询
+
+def test_congestion_intent():
+    reply = '{"intent":"congestion_query","line":"1号线"}'
+    r = route_intent(fake_llm(reply), "现在1号线挤不挤？", NAMES, ["1号线", "2号线", "磁浮线"])
+    assert r["intent"] == "congestion_query"
+    assert r["args"]["line"] == "1号线"
+
+def test_congestion_intent_chinese_numeral():
+    reply = '{"intent":"congestion_query","line":"一号线"}'
+    r = route_intent(fake_llm(reply), "一号线人多不多？", NAMES, ["1号线", "2号线"])
+    assert r["args"]["line"] == "1号线"
